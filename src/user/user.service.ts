@@ -13,12 +13,13 @@ export class UserService {
   private readonly users = [
     {
       userId: 1,
-      username: 'admin',
-      Password: "dabur2025@123"
+      username: process.env.USERID,
+      Password: process.env.PASS 
     },
   ];
 
   async findOne(username: string, password: string) {
+    console.log( this.users)
     const valid = this.users.find(user => user.username === username && password === user.Password);
     if (valid) {
       return username;

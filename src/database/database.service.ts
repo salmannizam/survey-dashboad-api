@@ -8,10 +8,10 @@ export class DatabaseService {
   constructor() {
     // Create a pool and keep it open for reuse
     this.poolPromise = sql.connect({
-      user: 'survey',
-      password: 'survey@123',
-      server: '40.127.190.1',
-      database: 'survey',
+      user: process.env.DBUSER,
+      password: process.env.DBPASS,
+      server: process.env.DBSERVER,
+      database: process.env.DBNAME,
       options: {
         encrypt: false,
         trustServerCertificate: true,
