@@ -29,7 +29,7 @@ async function bootstrap() {
 
   // Enable CORS for all origins (or you can specify specific origins)
   app.enableCors({
-    origin: 'daburcipl-c7dqfjethearg5ce.centralus-01.azurewebsites.net',  // Allow all origins (use this for testing, restrict for production)
+    origin: process.env.CORS_ORIGIN || '*' ,  // Allow all origins (use this for testing, restrict for production)
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',  // Allowed HTTP methods
     allowedHeaders: 'Content-Type, Authorization',  // Allowed headers
   });
