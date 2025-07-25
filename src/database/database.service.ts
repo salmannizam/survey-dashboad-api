@@ -12,8 +12,8 @@ this.poolPromise = sql.connect({
   password: process.env.DBPASS,
   server: process.env.DBSERVER,
   database: process.env.DBNAME,
-  requestTimeout: 60000,          // <- important fix
-  connectionTimeout: 30000,       // <- extra safe
+requestTimeout: 120000,   // <-- 2 minutes
+connectionTimeout: 30000,
   options: {
     encrypt: false,
     trustServerCertificate: true,
