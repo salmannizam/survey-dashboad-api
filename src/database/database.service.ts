@@ -7,32 +7,23 @@ export class DatabaseService {
 
   constructor() {
     // Create a pool and keep it open for reuse
-    this.poolPromise = sql.connect({
-      user: process.env.DBUSER,
-      password: process.env.DBPASS,
-      server: process.env.DBSERVER,
-      database: process.env.DBNAME,
-      options: {
-        encrypt: false,
-        trustServerCertificate: true,
-      },
-    });
+this.poolPromise = sql.connect({
+  user: process.env.DBUSER,
+  password: process.env.DBPASS,
+  server: process.env.DBSERVER,
+  database: process.env.DBNAME,
+  requestTimeout: 60000,          // <- important fix
+  connectionTimeout: 30000,       // <- extra safe
+  options: {
+    encrypt: false,
+    trustServerCertificate: true,
+  },
+});
   }
-
   // Define a method to execute a query with parameters
   async query(sqlQuery: string, parameters: any[]) {
     try {
-      const pool = await sql.connect({
-        user: 'survey',
-        password: 'survey@123',
-        server: '40.127.190.1',
-        database: 'survey',
-        options: {
-          encrypt: false,
-          trustServerCertificate: true,
-        },
-      });
-
+      const pool = await this.poolPromise;
       // Dynamically add parameters to the request
       const request = pool.request();
 
