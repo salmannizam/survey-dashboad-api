@@ -7,7 +7,7 @@ import { BlobServiceClient } from '@azure/storage-blob';
 import * as archiver from 'archiver';
 import { Response } from 'express'
 import { Readable } from 'stream';
-
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class SurveyService {
@@ -78,28 +78,28 @@ export class SurveyService {
 
   async downloadImagesZip(projectId: string, files: string[], res: Response): Promise<void> {
     if (!files || files.length === 0) throw new BadRequestException('Files array cannot be empty');
-  
+
     const blobServiceClient = BlobServiceClient.fromConnectionString(this.AZURE_CONNECTION_STRING);
     const containerClient = blobServiceClient.getContainerClient(this.CONTAINER_NAME);
-  
+
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename="images.zip"');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
-  
+
     const archive = archiver('zip', { zlib: { level: 9 } });
     archive.pipe(res);
-  
+
     for (const fileName of files) {
       try {
         const fullPath = `${"Dabur2025"}/${fileName.trim()}`;
         const blobClient = containerClient.getBlobClient(fullPath);
         const download = await blobClient.download();
-  
+
         if (!download.readableStreamBody) {
           console.warn(`No stream found for ${fullPath}, skipping`);
           continue;
         }
-  
+
         archive.append(download.readableStreamBody as Readable, {
           name: fileName,
         });
@@ -107,10 +107,100 @@ export class SurveyService {
         console.error(`Failed to append ${fileName} to archive:`, error);
       }
     }
-  
+
     await archive.finalize();
   }
-  
+
+
+  // Helper: Convert yyyyDDD (2025011) to YYYY-MM-DD
+private convertDayOfYearToDate(dateStr: string): string | null {
+  if (!dateStr || dateStr.length < 7) return null;
+  const year = parseInt(dateStr.substring(0, 4), 10);
+  const dayOfYear = parseInt(dateStr.substring(4), 10);
+  if (isNaN(year) || isNaN(dayOfYear)) return null;
+  const date = new Date(year, 0);
+  date.setDate(dayOfYear);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Helper: Get Freshness days from MFG Date (string)
+private getFreshnessDays(mfgDateStr: string): string {
+  const mfgDateParsed = this.convertDayOfYearToDate(mfgDateStr);
+  if (!mfgDateParsed) return 'NA';
+  const mfgDate = new Date(mfgDateParsed);
+  const today = new Date();
+  mfgDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  const diffTime = today.getTime() - mfgDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays < 0 ? '0' : diffDays.toString();
+}
+
+
+// Main export function
+async exportSurveyExcel(filters: any, res: Response) {
+  // 1. Get data
+  const result = await this.getPivotSurveyData({
+    outletNameInput: filters.OutletNameInput,
+    fromDate: filters.fromDate,
+    toDate: filters.toDate,
+    brand: filters.Brand,
+    location: filters.Location,
+    state: filters.State,
+    defect_type: filters.defect_type,
+    batchNumber: filters.BatchNumber,
+  });
+
+  // 2. Excel headers, in your required order
+  const headers = [
+    "State", "Zone", "Outlet Name", "Location", "Survey Date", "Brand",
+    "SKU", "Unit", "Batch No", "MfgDate", "ExpDate", "Sample Checked",
+    "VisualDefects", "no_of_defect", "Defect_image", "defect_type",
+    "Remarks", "Freshness"
+  ];
+
+  // 3. Create workbook/worksheet
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Survey Data');
+  worksheet.addRow(headers);
+
+  // 4. Add rows in same order
+  result.forEach(row => {
+    const mfgRaw = row["MFG Date"] || row["MfgDate"];
+    const freshness = mfgRaw ? this.getFreshnessDays(mfgRaw) : 'NA';
+
+    worksheet.addRow([
+      row.State || 'NA',
+      row.Zone || 'NA',
+      row['Outlet Name'] || 'NA',
+      row.Location || 'NA',
+      row.StartDate || 'NA',
+      row.Brand || 'NA',
+      row.SKU || 'NA',
+      row.Unit || 'NA',
+      row['Batch No'] || 'NA',
+      row.MfgDate || 'NA',
+      row.ExpDate || 'NA',
+      row['Sample Checked'] || 'NA',
+      row.VisualDefects || 'NA',
+      row.no_of_defect || 'NA',
+      row.Defect_image || 'NA',
+      row.defect_type || 'NA',
+      row.Remarks || 'NA',
+      freshness
+    ]);
+  });
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="survey-data-${filters.fromDate}-to-${filters.toDate}.xlsx"`);
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+
+  await workbook.xlsx.write(res);
+  res.end();
+}
 
 
 }

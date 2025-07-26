@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Get, Param, Query, UseGuards, Res, BadRequestException } from '@nestjs/common';
 import { SurveyService } from './survey.service';
 import { AuthGuard } from '../auth/auth.guard';
-import {Response} from 'express'
+import { Response } from 'express'
 
 @Controller('survey')
 export class SurveyController {
@@ -51,5 +51,18 @@ export class SurveyController {
       defect_type: defectType,
       batchNumber,
     });
+  }
+
+  @Post('export-excel')
+  @UseGuards(AuthGuard)
+  async exportExcel(
+    @Body() body: any,
+    @Res() res: Response
+  ) {
+    // body should have fromDate, toDate, and other filters as in your frontend
+    if (!body.fromDate || !body.toDate) {
+      throw new BadRequestException('fromDate and toDate are required');
+    }
+    return this.surveyService.exportSurveyExcel(body, res);
   }
 }
