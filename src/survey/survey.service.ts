@@ -17,16 +17,16 @@ export class SurveyService {
   private readonly CONTAINER_NAME = 'survey'; // Replace if needed
 
   async getPivotSurveyData(params: {
-    outletNameInput?: string;
-    fromDate?: string;
-    toDate?: string;
-    brand?: string;
-    location?: string;
-    state?: string;
-    defect_type?: string;
-    batchNumber?: string;
-  }) {
-    const query = `
+  outletNameInput?: string;
+  fromDate?: string;
+  toDate?: string;
+  brand?: string;
+  location?: string;
+  state?: string;
+  defect_type?: string;
+  batchNumber?: string;
+}) {
+  const query = `
     EXEC [dbo].[PivotSurveyAnswersByQuestion1]
       @OutletNameInput = @OutletNameInput,
       @FromDate = @FromDate,
@@ -38,24 +38,33 @@ export class SurveyService {
       @BatchNumber = @BatchNumber
   `;
 
-    try {
-      const result = await this.databaseService.query(query, [
-        { name: 'OutletNameInput', type: sql.NVarChar(100), value: params.outletNameInput || null },
-        { name: 'FromDate', type: sql.NVarChar(50), value: params.fromDate || '' },
-        { name: 'ToDate', type: sql.NVarChar(50), value: params.toDate || '' },
-        { name: 'Brand', type: sql.NVarChar(100), value: params.brand || null },
-        { name: 'Location', type: sql.NVarChar(100), value: params.location || null },
-        { name: 'State', type: sql.NVarChar(100), value: params.state || null },
-        { name: 'defect_type', type: sql.NVarChar(100), value: params.defect_type || null },
-        { name: 'BatchNumber', type: sql.NVarChar(100), value: params.batchNumber || null },
-      ]);
+  const queryParams = [
+    { name: 'OutletNameInput', type: sql.NVarChar(100), value: params.outletNameInput || null },
+    { name: 'FromDate', type: sql.NVarChar(50), value: params.fromDate || '' },
+    { name: 'ToDate', type: sql.NVarChar(50), value: params.toDate || '' },
+    { name: 'Brand', type: sql.NVarChar(100), value: params.brand || null },
+    { name: 'Location', type: sql.NVarChar(100), value: params.location || null },
+    { name: 'State', type: sql.NVarChar(100), value: params.state || null },
+    { name: 'defect_type', type: sql.NVarChar(100), value: params.defect_type || null },
+    { name: 'BatchNumber', type: sql.NVarChar(100), value: params.batchNumber || null },
+  ];
 
-      return result;
-    } catch (error) {
-      console.error('Error executing stored procedure:', error);
-      throw error;
-    }
+  try {
+    // Log input parameters
+    console.log('Executing stored procedure [PivotSurveyAnswersByQuestion1] with params:', queryParams);
+
+    const result = await this.databaseService.query(query, queryParams);
+
+    // Log output result
+    console.log('Stored procedure result:', JSON.stringify(result, null, 2));
+
+    return result;
+  } catch (error) {
+    console.error('Error executing stored procedure:', error);
+    throw error;
   }
+}
+
 
 
   async downloadSingleImage(projectId: string, fileName: string, res: Response): Promise<void> {
