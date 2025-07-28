@@ -16,17 +16,37 @@ export class SurveyService {
   private readonly AZURE_CONNECTION_STRING = process.env.AZURE_BUCKET_KEY;
   private readonly CONTAINER_NAME = 'survey'; // Replace if needed
 
+
+  private convertISTtoUTCString(istDateStr: string): string {
+    if (!istDateStr) return '';
+
+    // Assume istDateStr is in "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm:ss" format (IST)
+    const [datePart, timePart] = istDateStr.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour = 0, minute = 0, second = 0] = (timePart || '').split(':').map(Number);
+
+    // Construct IST date (UTC + 5:30)
+    const istDate = new Date(Date.UTC(year, month - 1, day, hour - 5, minute - 30, second));
+    return istDate.toISOString().slice(0, 19).replace('T', ' ');
+  }
+
+
   async getPivotSurveyData(params: {
-  outletNameInput?: string;
-  fromDate?: string;
-  toDate?: string;
-  brand?: string;
-  location?: string;
-  state?: string;
-  defect_type?: string;
-  batchNumber?: string;
-}) {
-  const query = `
+    outletNameInput?: string;
+    fromDate?: string;
+    toDate?: string;
+    brand?: string;
+    location?: string;
+    state?: string;
+    defect_type?: string;
+    batchNumber?: string;
+  }) {
+
+    const fromDateUTC = params.fromDate ? this.convertISTtoUTCString(params.fromDate) : '';
+    const toDateUTC = params.toDate ? this.convertISTtoUTCString(params.toDate) : '';
+
+
+    const query = `
     EXEC [dbo].[PivotSurveyAnswersByQuestion1]
       @OutletNameInput = @OutletNameInput,
       @FromDate = @FromDate,
@@ -38,32 +58,32 @@ export class SurveyService {
       @BatchNumber = @BatchNumber
   `;
 
-  const queryParams = [
-    { name: 'OutletNameInput', type: sql.NVarChar(100), value: params.outletNameInput || null },
-    { name: 'FromDate', type: sql.NVarChar(50), value: params.fromDate || '' },
-    { name: 'ToDate', type: sql.NVarChar(50), value: params.toDate || '' },
-    { name: 'Brand', type: sql.NVarChar(100), value: params.brand || null },
-    { name: 'Location', type: sql.NVarChar(100), value: params.location || null },
-    { name: 'State', type: sql.NVarChar(100), value: params.state || null },
-    { name: 'defect_type', type: sql.NVarChar(100), value: params.defect_type || null },
-    { name: 'BatchNumber', type: sql.NVarChar(100), value: params.batchNumber || null },
-  ];
+    const queryParams = [
+      { name: 'OutletNameInput', type: sql.NVarChar(100), value: params.outletNameInput || null },
+      { name: 'FromDate', type: sql.NVarChar(50), value: fromDateUTC },
+      { name: 'ToDate', type: sql.NVarChar(50), value: toDateUTC },
+      { name: 'Brand', type: sql.NVarChar(100), value: params.brand || null },
+      { name: 'Location', type: sql.NVarChar(100), value: params.location || null },
+      { name: 'State', type: sql.NVarChar(100), value: params.state || null },
+      { name: 'defect_type', type: sql.NVarChar(100), value: params.defect_type || null },
+      { name: 'BatchNumber', type: sql.NVarChar(100), value: params.batchNumber || null },
+    ];
 
-  try {
-    // Log input parameters
-    console.log('Executing stored procedure [PivotSurveyAnswersByQuestion1] with params:', queryParams);
+    try {
+      // Log input parameters
+      console.log('Executing stored procedure [PivotSurveyAnswersByQuestion1] with params:', queryParams);
 
-    const result = await this.databaseService.query(query, queryParams);
+      const result = await this.databaseService.query(query, queryParams);
 
-    // Log output result
-    console.log('Stored procedure result:', JSON.stringify(result, null, 2));
+      // Log output result
+      console.log('Stored procedure result:', JSON.stringify(result, null, 2));
 
-    return result;
-  } catch (error) {
-    console.error('Error executing stored procedure:', error);
-    throw error;
+      return result;
+    } catch (error) {
+      console.error('Error executing stored procedure:', error);
+      throw error;
+    }
   }
-}
 
 
 
@@ -122,96 +142,123 @@ export class SurveyService {
 
 
   // Helper: Convert yyyyDDD (2025011) to YYYY-MM-DD
-private convertDayOfYearToDate(dateStr: string): string | null {
-  if (!dateStr || dateStr.length < 7) return null;
-  const year = parseInt(dateStr.substring(0, 4), 10);
-  const dayOfYear = parseInt(dateStr.substring(4), 10);
-  if (isNaN(year) || isNaN(dayOfYear)) return null;
-  const date = new Date(year, 0);
-  date.setDate(dayOfYear);
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
+  private convertDayOfYearToIST(dateStr: string): { formatted: string, istDate: Date } | null {
+    if (!dateStr || dateStr.length < 7) return null;
 
-// Helper: Get Freshness days from MFG Date (string)
-private getFreshnessDays(mfgDateStr: string): string {
-  const mfgDateParsed = this.convertDayOfYearToDate(mfgDateStr);
-  if (!mfgDateParsed) return 'NA';
-  const mfgDate = new Date(mfgDateParsed);
-  const today = new Date();
-  mfgDate.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  const diffTime = today.getTime() - mfgDate.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays < 0 ? '0' : diffDays.toString();
-}
+    const year = parseInt(dateStr.substring(0, 4), 10);
+    const dayOfYear = parseInt(dateStr.substring(4), 10);
+    if (isNaN(year) || isNaN(dayOfYear)) return null;
+
+    // Step 1: Get UTC date from DB format
+    const utcDate = new Date(Date.UTC(year, 0)); // Jan 1
+    utcDate.setUTCDate(dayOfYear); // Add days
+
+    // Step 2: Convert to IST (UTC + 5:30)
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(utcDate.getTime() + IST_OFFSET);
+
+    const mm = String(istDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(istDate.getDate()).padStart(2, '0');
+    const yyyy = istDate.getFullYear();
+
+    return {
+      formatted: `${mm}-${dd}-${yyyy}`,
+      istDate
+    };
+  }
+
+  // Helper: Get Freshness days from MFG Date (string)
+  private getFreshnessDays(mfgDateStr: string): { freshness: string, formattedMfg: string } {
+    const converted = this.convertDayOfYearToIST(mfgDateStr);
+    if (!converted) return { freshness: 'NA', formattedMfg: 'NA' };
+
+    const { istDate: mfgDate, formatted: formattedMfg } = converted;
+
+    // Get today's date in IST
+    const now = new Date();
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+    const nowIST = new Date(now.getTime() + IST_OFFSET);
+
+    // Zero hours for both
+    mfgDate.setHours(0, 0, 0, 0);
+    nowIST.setHours(0, 0, 0, 0);
+
+    const diffTime = nowIST.getTime() - mfgDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    return {
+      freshness: diffDays < 0 ? '0' : diffDays.toString(),
+      formattedMfg
+    };
+  }
 
 
-// Main export function
-async exportSurveyExcel(filters: any, res: Response) {
-  // 1. Get data
-  const result = await this.getPivotSurveyData({
-    outletNameInput: filters.OutletNameInput,
-    fromDate: filters.fromDate,
-    toDate: filters.toDate,
-    brand: filters.Brand,
-    location: filters.Location,
-    state: filters.State,
-    defect_type: filters.defect_type,
-    batchNumber: filters.BatchNumber,
-  });
+  // Main export function
+  async exportSurveyExcel(filters: any, res: Response) {
+    // 1. Get data
+    const result = await this.getPivotSurveyData({
+      outletNameInput: filters.OutletNameInput,
+      fromDate: filters.fromDate,
+      toDate: filters.toDate,
+      brand: filters.Brand,
+      location: filters.Location,
+      state: filters.State,
+      defect_type: filters.defect_type,
+      batchNumber: filters.BatchNumber,
+    });
 
-  // 2. Excel headers, in your required order
-  const headers = [
-    "State", "Zone", "Outlet Name", "Location", "Survey Date", "Brand",
-    "SKU", "Unit", "Batch No", "MfgDate", "ExpDate", "Sample Checked",
-    "VisualDefects", "no_of_defect", "Defect_image", "defect_type",
-    "Remarks", "Freshness"
-  ];
+    // 2. Excel headers, in your required order
+    const headers = [
+      "State", "Zone", "Outlet Name", "Location", "Survey Date", "Brand",
+      "SKU", "Unit", "Batch No", "MfgDate", "ExpDate", "Sample Checked",
+      "VisualDefects", "no_of_defect", "Defect_image", "defect_type",
+      "Remarks", "Freshness"
+    ];
 
-  // 3. Create workbook/worksheet
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Survey Data');
-  worksheet.addRow(headers);
+    // 3. Create workbook/worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Survey Data');
+    worksheet.addRow(headers);
 
-  // 4. Add rows in same order
-  result.forEach(row => {
-    const mfgRaw = row["MFG Date"] || row["MfgDate"];
-    const freshness = mfgRaw ? this.getFreshnessDays(mfgRaw) : 'NA';
+    // 4. Add rows in same order
+    result.forEach(row => {
+      const mfgRaw = row["MFG Date"] || row["MfgDate"];
+      const expRaw = row["ExpDate"];
 
-    worksheet.addRow([
-      row.State || 'NA',
-      row.Zone || 'NA',
-      row['Outlet Name'] || 'NA',
-      row.Location || 'NA',
-      row.StartDate || 'NA',
-      row.Brand || 'NA',
-      row.SKU || 'NA',
-      row.Unit || 'NA',
-      (row['Batch No.'] || row['Batch No1.']) 
-  ? `${row['Batch No.'] || ''}-${row['Batch No1.'] || ''}` 
-  : 'NA',
-      row.MfgDate || 'NA',
-      row.ExpDate || 'NA',
-      row['Sample Checked'] || 'NA',
-      row.VisualDefects || 'NA',
-      row.no_of_defect || 'NA',
-      row.Defect_image || 'NA',
-      row.defect_type || 'NA',
-      row.Remarks || 'NA',
-      freshness
-    ]);
-  });
+      const { freshness, formattedMfg } = mfgRaw ? this.getFreshnessDays(mfgRaw) : { freshness: 'NA', formattedMfg: 'NA' };
+      const formattedExp = expRaw ? this.convertDayOfYearToIST(expRaw)?.formatted || 'NA' : 'NA';
 
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="survey-data-${filters.fromDate}-to-${filters.toDate}.xlsx"`);
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+      worksheet.addRow([
+        row.State || 'NA',
+        row.Zone || 'NA',
+        row['Outlet Name'] || 'NA',
+        row.Location || 'NA',
+        row.StartDate || 'NA',
+        row.Brand || 'NA',
+        Number(row.SKU || 0) || 'NA',
+        row.Unit || 'NA',
+        (row['Batch No.'] || row['Batch No1.'])
+          ? `${row['Batch No.'] || ''}-${row['Batch No1.'] || ''}`
+          : 'NA',
+        formattedMfg,
+        formattedExp,
+        row['Sample Checked'] || 'NA',
+        row.VisualDefects || 'NA',
+        Number(row.no_of_defect || 0) || 'NA',
+        row.Defect_image || 'NA',
+        row.defect_type || 'NA',
+        row.Remarks || 'NA',
+        freshness
+      ]);
+    });
 
-  await workbook.xlsx.write(res);
-  res.end();
-}
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="survey-data-${filters.fromDate}-to-${filters.toDate}.xlsx"`);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+
+    await workbook.xlsx.write(res);
+    res.end();
+  }
 
 
 }
