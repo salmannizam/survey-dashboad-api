@@ -223,7 +223,7 @@ export class SurveyService {
     // 4. Add rows in same order
     result.forEach(row => {
       const mfgRaw = row["MFG Date"] || row["MfgDate"];
-      const expRaw = row["ExpDate"];
+      const expRaw = row["Exp. Date"];
 
       const { freshness, formattedMfg } = mfgRaw ? this.getFreshnessDays(mfgRaw) : { freshness: 'NA', formattedMfg: 'NA' };
       const formattedExp = expRaw ? this.convertDayOfYearToIST(expRaw)?.formatted || 'NA' : 'NA';
