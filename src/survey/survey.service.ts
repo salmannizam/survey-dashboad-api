@@ -155,7 +155,7 @@ export class SurveyService {
 
     // Step 2: Convert to IST (UTC + 5:30)
     const IST_OFFSET = 5.5 * 60 * 60 * 1000;
-    const istDate = new Date(utcDate.getTime() + IST_OFFSET);
+    const istDate = new Date(utcDate.getTime() + 0);
 
     const mm = String(istDate.getMonth() + 1).padStart(2, '0');
     const dd = String(istDate.getDate()).padStart(2, '0');
@@ -177,7 +177,7 @@ export class SurveyService {
     // Get today's date in IST
     const now = new Date();
     const IST_OFFSET = 5.5 * 60 * 60 * 1000;
-    const nowIST = new Date(now.getTime() + IST_OFFSET);
+    const nowIST = new Date(now.getTime() + 0);
 
     // Zero hours for both
     mfgDate.setHours(0, 0, 0, 0);
