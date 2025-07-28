@@ -190,7 +190,9 @@ async exportSurveyExcel(filters: any, res: Response) {
       row.Brand || 'NA',
       row.SKU || 'NA',
       row.Unit || 'NA',
-      row['Batch No'] || 'NA',
+      (row['Batch No.'] || row['Batch No1.']) 
+  ? `${row['Batch No.'] || ''}-${row['Batch No1.'] || ''}` 
+  : 'NA'
       row.MfgDate || 'NA',
       row.ExpDate || 'NA',
       row['Sample Checked'] || 'NA',
