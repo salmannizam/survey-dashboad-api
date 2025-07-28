@@ -192,7 +192,7 @@ async exportSurveyExcel(filters: any, res: Response) {
       row.Unit || 'NA',
       (row['Batch No.'] || row['Batch No1.']) 
   ? `${row['Batch No.'] || ''}-${row['Batch No1.'] || ''}` 
-  : 'NA'
+  : 'NA',
       row.MfgDate || 'NA',
       row.ExpDate || 'NA',
       row['Sample Checked'] || 'NA',
