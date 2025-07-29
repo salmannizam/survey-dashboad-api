@@ -60,8 +60,8 @@ export class SurveyService {
 
     const queryParams = [
       { name: 'OutletNameInput', type: sql.NVarChar(100), value: params.outletNameInput || null },
-      { name: 'FromDate', type: sql.NVarChar(50), value: fromDateUTC },
-      { name: 'ToDate', type: sql.NVarChar(50), value: toDateUTC },
+      { name: 'FromDate', type: sql.NVarChar(50), value: params.fromDate },
+      { name: 'ToDate', type: sql.NVarChar(50), value: params.toDate },
       { name: 'Brand', type: sql.NVarChar(100), value: params.brand || null },
       { name: 'Location', type: sql.NVarChar(100), value: params.location || null },
       { name: 'State', type: sql.NVarChar(100), value: params.state || null },
