@@ -150,19 +150,22 @@ private convertDayOfYearToIST(dateStr: string): { formatted: string, istDate: Da
   const dayOfYear = parseInt(dateStr.substring(4), 10);
   if (isNaN(year) || isNaN(dayOfYear)) return null;
 
-  // Simple local time logic (same as frontend)
-  const date = new Date(year, 0); // Jan 1
-  date.setDate(dayOfYear); // Adds day of year
+  const date = new Date(Date.UTC(year, 0, 1)); // Jan 1 UTC
+  date.setUTCDate(dayOfYear); // Now still in UTC
 
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
+  // Apply IST offset (UTC+5:30)
+  const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Add IST offset
+
+  const yyyy = istDate.getFullYear();
+  const mm = String(istDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(istDate.getDate()).padStart(2, '0');
 
   return {
     formatted: `${mm}-${dd}-${yyyy}`,
-    istDate: date
+    istDate
   };
 }
+
 
   // Helper: Get Freshness days from MFG Date (string)
 private getFreshnessDays(mfgDateStr: string): { freshness: string, formattedMfg: string } {
@@ -244,8 +247,8 @@ worksheet.getColumn(11).numFmt = 'dd-mmm-yyyy';
         (row['Batch No.'] || row['Batch No1.'])
           ? `${row['Batch No.'] || ''}${row['Batch No1.'] || ''}`
           : 'NA',
-          mfgDate, // MfgDate placeholder
-          expDate, // ExpDate placeholder
+        mfgConverted?.formatted || 'NA', 
+        expConverted?.formatted || 'NA', 
         row['Sample Checked'] || 'NA',
         row.VisualDefects || 'NA',
         Number(row.no_of_defect || 0) || 'NA',
