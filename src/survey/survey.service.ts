@@ -259,11 +259,12 @@ worksheet.getColumn(11).numFmt = 'dd-mmm-yyyy';
 
          // ✅ Set Excel date values properly
         if (mfgDate instanceof Date) {
-          newRow.getCell(10).value = { type: ExcelJS.ValueType.Date, value: mfgDate };
+          newRow.getCell(10).value = mfgDate; // ✅ Correct
         }
         if (expDate instanceof Date) {
-          newRow.getCell(11).value = { type: ExcelJS.ValueType.Date, value: expDate };
+          newRow.getCell(11).value = expDate; // ✅ Correct
         }
+
     });
     
 
