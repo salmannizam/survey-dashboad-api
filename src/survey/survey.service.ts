@@ -224,15 +224,15 @@ worksheet.getColumn(11).numFmt = 'dd-mmm-yyyy';
       const mfgRaw = row["MFG Date"] || row["MfgDate"];
       const expRaw = row["Exp. Date"];
 
-   const mfgConverted = mfgRaw ? this.convertDayOfYearToIST(mfgRaw) : null;
-const expConverted = expRaw ? this.convertDayOfYearToIST(expRaw) : null;
+       const mfgConverted = mfgRaw ? this.convertDayOfYearToIST(mfgRaw) : null;
+      const expConverted = expRaw ? this.convertDayOfYearToIST(expRaw) : null;
+      
+      const mfgDate = mfgConverted?.istDate || null;
+      const expDate = expConverted?.istDate || null;
+      
+      const freshness = mfgConverted ? this.getFreshnessDays(mfgRaw).freshness : 'NA';
 
-const mfgDate = mfgConverted?.istDate || 'NA';
-const expDate = expConverted?.istDate || 'NA';
-
-const freshness = mfgConverted ? this.getFreshnessDays(mfgRaw).freshness : 'NA';
-
-      worksheet.addRow([
+      const newRow = worksheet.addRow([
         row.State || 'NA',
         row.Zone || 'NA',
         row['Outlet Name'] || 'NA',
@@ -244,8 +244,8 @@ const freshness = mfgConverted ? this.getFreshnessDays(mfgRaw).freshness : 'NA';
         (row['Batch No.'] || row['Batch No1.'])
           ? `${row['Batch No.'] || ''}${row['Batch No1.'] || ''}`
           : 'NA',
-        mfgDate,
-        expDate,
+          null, // MfgDate placeholder
+          null, // ExpDate placeholder
         row['Sample Checked'] || 'NA',
         row.VisualDefects || 'NA',
         Number(row.no_of_defect || 0) || 'NA',
@@ -256,7 +256,16 @@ const freshness = mfgConverted ? this.getFreshnessDays(mfgRaw).freshness : 'NA';
         row.Address || 'NA',
         
       ]);
+
+         // ✅ Set Excel date values properly
+        if (mfgDate instanceof Date) {
+          newRow.getCell(10).value = { type: ExcelJS.ValueType.Date, value: mfgDate };
+        }
+        if (expDate instanceof Date) {
+          newRow.getCell(11).value = { type: ExcelJS.ValueType.Date, value: expDate };
+        }
     });
+    
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="survey-data-${filters.fromDate}-to-${filters.toDate}.xlsx"`);
