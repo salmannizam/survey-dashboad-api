@@ -219,9 +219,6 @@ private getFreshnessDays(mfgDateStr: string): { freshness: string, formattedMfg:
     worksheet.addRow(headers);
 
     
-    worksheet.getColumn(10).numFmt = 'dd-mmm-yyyy';
-worksheet.getColumn(11).numFmt = 'dd-mmm-yyyy';
-    
     // 4. Add rows in same order
     result.forEach(row => {
       const mfgRaw = row["MFG Date"] || row["MfgDate"];
