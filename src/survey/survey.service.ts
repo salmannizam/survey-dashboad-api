@@ -244,8 +244,8 @@ worksheet.getColumn(11).numFmt = 'dd-mmm-yyyy';
         (row['Batch No.'] || row['Batch No1.'])
           ? `${row['Batch No.'] || ''}${row['Batch No1.'] || ''}`
           : 'NA',
-          null, // MfgDate placeholder
-          null, // ExpDate placeholder
+          mfgDate, // MfgDate placeholder
+          expDate, // ExpDate placeholder
         row['Sample Checked'] || 'NA',
         row.VisualDefects || 'NA',
         Number(row.no_of_defect || 0) || 'NA',
@@ -256,14 +256,6 @@ worksheet.getColumn(11).numFmt = 'dd-mmm-yyyy';
         row.Address || 'NA',
         
       ]);
-
-         // ✅ Set Excel date values properly
-        if (mfgDate instanceof Date) {
-          newRow.getCell(10).value = mfgDate; // ✅ Correct
-        }
-        if (expDate instanceof Date) {
-          newRow.getCell(11).value = expDate; // ✅ Correct
-        }
 
     });
     
