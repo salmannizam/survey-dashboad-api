@@ -140,31 +140,27 @@ export class SurveyService {
     await archive.finalize();
   }
 
-
   // Helper: Convert yyyyDDD (2025011) to YYYY-MM-DD
-// Helper: Convert yyyyDDD (e.g. 2025011) to YYYY-MM-DD
-private convertDayOfYearToIST(dateStr: string): { formatted: string, istDate: Date } | null {
-  if (!dateStr || dateStr.length < 7) return null;
-
-  const year = parseInt(dateStr.substring(0, 4), 10);
-  const dayOfYear = parseInt(dateStr.substring(4), 10);
-  if (isNaN(year) || isNaN(dayOfYear)) return null;
-
-  const date = new Date(Date.UTC(year, 0, 1)); // Jan 1 UTC
-  date.setUTCDate(dayOfYear); // Now still in UTC
-
-  // Apply IST offset (UTC+5:30)
-  const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Add IST offset
-
-  const yyyy = istDate.getFullYear();
-  const mm = String(istDate.getMonth() + 1).padStart(2, '0');
-  const dd = String(istDate.getDate()).padStart(2, '0');
-
-  return {
-    formatted: `${mm}-${dd}-${yyyy}`,
-    istDate
-  };
-}
+  private convertDayOfYearToIST(dateStr: string): { formatted: string, istDate: Date } | null {
+    if (!dateStr || dateStr.length < 7) return null;
+  
+    const year = parseInt(dateStr.substring(0, 4), 10);
+    const dayOfYear = parseInt(dateStr.substring(4), 10);
+    if (isNaN(year) || isNaN(dayOfYear)) return null;
+  
+    // Create date as IST-local (since JS Date defaults to system TZ)
+    const istDate = new Date(year, 0, 1); // Jan 1
+    istDate.setDate(dayOfYear); // move to correct day of year
+  
+    const mm = String(istDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(istDate.getDate()).padStart(2, '0');
+    const yyyy = istDate.getFullYear();
+  
+    return {
+      formatted: `${mm}-${dd}-${yyyy}`,
+      istDate
+    };
+  }
 
 
   // Helper: Get Freshness days from MFG Date (string)
