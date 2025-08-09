@@ -140,17 +140,13 @@ export class SurveyService {
     await archive.finalize();
   }
 
+
   // Helper: Convert yyyyDDD (2025011) to YYYY-MM-DD
-  private convertDayOfYearToIST(dateStr: string): { formatted: string, istDate: Date } | null {
-    if (!dateStr || dateStr.length < 7) return null;
+  private convertDateStringToIST(dateStr: string): { formatted: string, istDate: Date } | null {
+    if (!dateStr) return null;
   
-    const year = parseInt(dateStr.substring(0, 4), 10);
-    const dayOfYear = parseInt(dateStr.substring(4), 10);
-    if (isNaN(year) || isNaN(dayOfYear)) return null;
-  
-    // Create date as IST-local (since JS Date defaults to system TZ)
-    const istDate = new Date(year, 0, 1); // Jan 1
-    istDate.setDate(dayOfYear); // move to correct day of year
+    const istDate = new Date(dateStr); // Local system timezone (IST in your server)
+    if (isNaN(istDate.getTime())) return null;
   
     const mm = String(istDate.getMonth() + 1).padStart(2, '0');
     const dd = String(istDate.getDate()).padStart(2, '0');
@@ -161,29 +157,28 @@ export class SurveyService {
       istDate
     };
   }
-
-
+  
   // Helper: Get Freshness days from MFG Date (string)
-private getFreshnessDays(mfgDateStr: string): { freshness: string, formattedMfg: string } {
-  const converted = this.convertDayOfYearToIST(mfgDateStr);
-  if (!converted) return { freshness: 'NA', formattedMfg: 'NA' };
+  private getFreshnessDays(mfgDateStr: string): { freshness: string, formattedMfg: string } {
+    const converted = this.convertDateStringToIST(mfgDateStr);
+    if (!converted) return { freshness: 'NA', formattedMfg: 'NA' };
 
-  const { istDate: mfgDate, formatted: formattedMfg } = converted;
+    const { istDate: mfgDate, formatted: formattedMfg } = converted;
 
-  const today = new Date();
+    const today = new Date();
 
-  // Set both to midnight to ignore time component
-  mfgDate.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
+    // Set both to midnight to ignore time component
+    mfgDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
 
-  const diffTime = today.getTime() - mfgDate.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffTime = today.getTime() - mfgDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-  return {
-    freshness: diffDays < 0 ? '0' : diffDays.toString(),
-    formattedMfg
-  };
-}
+    return {
+      freshness: diffDays < 0 ? '0' : diffDays.toString(),
+      formattedMfg
+    };
+  }
 
 
   // Main export function
@@ -205,28 +200,23 @@ private getFreshnessDays(mfgDateStr: string): { freshness: string, formattedMfg:
       "State", "Zone", "Outlet Name", "Location", "Survey Date", "Brand",
       "SKU", "Unit", "Batch No", "MfgDate", "ExpDate", "Sample Checked",
       "VisualDefects", "no_of_defect", "Defect_image", "defect_type",
-      "Remarks", "Freshness",'Address'
+      "Remarks", "Freshness", 'Address'
     ];
 
-    
+
     // 3. Create workbook/worksheet
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Survey Data');
     worksheet.addRow(headers);
 
-    
+
     // 4. Add rows in same order
     result.forEach(row => {
-      const mfgRaw = row["MFG Date"] || row["MfgDate"];
-      const expRaw = row["Exp. Date"];
-
-       const mfgConverted = mfgRaw ? this.convertDayOfYearToIST(mfgRaw) : null;
-      const expConverted = expRaw ? this.convertDayOfYearToIST(expRaw) : null;
-      
-      const mfgDate = mfgConverted?.istDate || null;
-      const expDate = expConverted?.istDate || null;
-      
-      const freshness = mfgConverted ? this.getFreshnessDays(mfgRaw).freshness : 'NA';
+  
+      const mfgConverted = row["MfgDate"] ? this.convertDateStringToIST(row["MfgDate"]) : null;
+      const expConverted = row["ExpDate"] ? this.convertDateStringToIST(row["ExpDate"]) : null;
+    
+      const freshness = mfgConverted ? this.getFreshnessDays(row["MfgDate"]).freshness : 'NA';
 
       const newRow = worksheet.addRow([
         row.State || 'NA',
@@ -240,8 +230,8 @@ private getFreshnessDays(mfgDateStr: string): { freshness: string, formattedMfg:
         (row['Batch No.'] || row['Batch No1.'])
           ? `${row['Batch No.'] || ''}${row['Batch No1.'] || ''}`
           : 'NA',
-        mfgConverted?.formatted || 'NA', 
-        expConverted?.formatted || 'NA', 
+          mfgConverted?.istDate || null, // Date object for Excel
+          expConverted?.istDate || null, // Date object for Excel
         row['Sample Checked'] || 'NA',
         row.VisualDefects || 'NA',
         Number(row.no_of_defect || 0) || 'NA',
@@ -250,11 +240,11 @@ private getFreshnessDays(mfgDateStr: string): { freshness: string, formattedMfg:
         row.Remarks || 'NA',
         freshness,
         row.Address || 'NA',
-        
+
       ]);
 
     });
-    
+
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="survey-data-${filters.fromDate}-to-${filters.toDate}.xlsx"`);
